@@ -74,5 +74,21 @@ func main() {
 		c.JSON(http.StatusOK, res)
 		return
 	})
+
+	router.DELETE("/clear/:chapterName", func(c *gin.Context) {
+		chapterName := c.Param("chapterName")
+		targetDir := fmt.Sprintf("%s/data/%s", baseDir, chapterName)
+		if stat, err := os.Stat(targetDir); err == nil && stat.IsDir() {
+			err := os.RemoveAll(targetDir)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not remove directory"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"msg": "directory removed successfully"})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "directory not found"})
+		return
+	})
 	router.Run(":8080")
 }
