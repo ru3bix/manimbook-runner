@@ -49,7 +49,7 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 	}
 	sendMessage(c, initiateMsg, mutex)
 
-	mediaDir := fmt.Sprintf("%s/media", info.OutputDir)
+	mediaDir := fmt.Sprintf("%s/%s/media", info.OutputDir, info.ClassName)
 	cmd := exec.Command("manim",
 		"--media_dir",
 		mediaDir,
@@ -96,7 +96,7 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 		return
 	}
 
-	videoUrl := fmt.Sprintf("%s/data/%s/media/videos/output/720p30/%s.mp4", publicHTTPUrl, info.Chapter, info.ClassName)
+	videoUrl := fmt.Sprintf("%s/data/%s/%s/media/videos/output/720p30/%s.mp4", publicHTTPUrl, info.Chapter, info.ClassName, info.ClassName)
 	completionMsg := map[string]interface{}{
 		"type":    "CompletionMessage",
 		"payload": []interface{}{info.Index, videoUrl},
@@ -108,7 +108,7 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 func ExecChapter(c *websocket.Conn, classes []ClassInfo, ctx context.Context, publicHTTPUrl string) error {
 	var (
 		wsMutex    sync.Mutex
-		maxWorkers = 1
+		maxWorkers = 5
 		sem        = semaphore.NewWeighted(int64(maxWorkers))
 	)
 	log.Println("Received classes:", classes)
