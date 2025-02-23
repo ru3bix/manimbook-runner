@@ -39,8 +39,11 @@ func main() {
 		chapterName := c.Param("chapterName")
 		outputDir := fmt.Sprintf("%s/data/%s", baseDir, chapterName)
 		if stat, err := os.Stat(outputDir); err == nil && stat.IsDir() {
-			c.JSON(http.StatusConflict, gin.H{"error": "output directory exists"})
-			return
+			err := os.RemoveAll(outputDir)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not remove directory"})
+				return
+			}
 		}
 		templateDir := fmt.Sprintf("%s/%s", baseDir, "/templates")
 
