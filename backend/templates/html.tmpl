@@ -11,7 +11,6 @@
 		/* Optional styling for terminal containers */
 		.terminal-container {
 			margin-top: 5px;
-			max-width: 75%;
 			height: 200px;
 		}
 
@@ -260,7 +259,7 @@
 						// Insert the terminal container just after the video element
 						videoElement.parentNode.insertBefore(terminalContainer, videoElement.nextSibling);
 						// Initialize xterm.js terminal and open it in the container
-						const term = new Terminal();
+						const term = new Terminal({ fontSize: 8 });
 						const fitAddon = new FitAddon.FitAddon();
 						term.loadAddon(fitAddon);
 						term.open(terminalContainer);
