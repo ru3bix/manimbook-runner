@@ -247,7 +247,7 @@
 			const data = msgpack.decode(new Uint8Array(event.data));
 			if (data.chapter === "{{ .ChapterName }}") {
 				if (data.type === "BeginningMessage") {
-					window.top.postMessage(`started ${data.payload}`)
+					window.top.postMessage(`started ${data.payload}`, "*")
 				} else if (data.type === 'InitiateMessage') {
 					const id = data.payload;
 					// Find the video element with id equal to the payload integer
@@ -282,7 +282,7 @@
 				} else if (data.type === 'CompletionMessage') {
 					// Payload is expected to be an array: [id, videoSrc]
 					const [id, videoSrc] = data.payload;
-					window.top.postMessage(`loaded ${data.payload}`)
+					window.top.postMessage(`loaded ${data.payload}`, "*")
 					// Remove the terminal element if it exists
 					const terminalContainer = document.getElementById('term-' + id);
 					// const placeholder = document.getElementById('placeholder-' + id);
@@ -304,7 +304,7 @@
 						console.warn('Video element with id ' + id + ' not found.');
 					}
 				} else if (data.type === 'FinalMessage') {
-					window.top.postMessage(`finished`)
+					window.top.postMessage(`finished`, "*")
 				}
 			}
 		};
