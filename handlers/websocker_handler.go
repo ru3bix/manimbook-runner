@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"log"
-	"mbook-backend/runner"
+	"mbook-backend/runner/preview"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +17,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func GenerateWSHandler(chapters map[string]([]runner.ClassInfo), publicHTTPUrl string) func(c *gin.Context) {
+func GetWSHandler(chapters map[string]([]preview.ClassInfo), publicHTTPUrl string) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -54,6 +54,6 @@ func GenerateWSHandler(chapters map[string]([]runner.ClassInfo), publicHTTPUrl s
 			return
 		}
 
-		runner.ExecChapter(conn, classes, c, publicHTTPUrl)
+		preview.ExecChapter(conn, classes, c, publicHTTPUrl)
 	}
 }

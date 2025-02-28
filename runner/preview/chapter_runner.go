@@ -1,53 +1,28 @@
-package runner
+package preview
 
 import (
 	"bufio"
 	"fmt"
 	"io"
+	"mbook-backend/utils"
 	"os/exec"
 	"sync"
 
 	"context"
-	"github.com/gorilla/websocket"
-	"github.com/vmihailenco/msgpack/v5"
-	"golang.org/x/sync/semaphore"
 	"log"
+
+	"github.com/gorilla/websocket"
+	"golang.org/x/sync/semaphore"
 )
 
-func sendMessage(c *websocket.Conn, message interface{}, mutex *sync.Mutex) {
-	data, err := msgpack.Marshal(message)
-	if err != nil {
-		log.Println("failed at sendMessage due to msgpack", message)
-		return
-	}
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	err = c.WriteMessage(websocket.BinaryMessage, data)
-	if err != nil {
-		log.Println("failed to send message", message)
-	}
-
-}
-
-func closeConnection(c *websocket.Conn, chapter string, mutex *sync.Mutex) {
-	defer c.Close()
-	endingMsg := map[string]interface{}{
-		"type":    "FinalMessage",
-		"payload": "bye :)",
-		"chapter": chapter,
-	}
-	sendMessage(c, endingMsg, mutex)
-}
-
-func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUrl string) {
+func execCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUrl string) {
 	log.Println("Executing class ", info.ClassName)
 	initiateMsg := map[string]interface{}{
 		"type":    "InitiateMessage",
 		"payload": info.Index,
 		"chapter": info.Chapter,
 	}
-	sendMessage(c, initiateMsg, mutex)
+	utils.SendWsMessage(c, initiateMsg, mutex)
 
 	mediaDir := fmt.Sprintf("%s/%s/media", info.OutputDir, info.ClassName)
 	cmd := exec.Command("manim",
@@ -64,19 +39,19 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Println("failed at stdout pipe")
-		closeConnection(c, info.Chapter, mutex)
+		utils.CloseWSConnection(c, info.Chapter, mutex)
 		return
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		log.Println("failed at stderr pipe")
-		closeConnection(c, info.Chapter, mutex)
+		utils.CloseWSConnection(c, info.Chapter, mutex)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
 		log.Println("failed at command start")
-		closeConnection(c, info.Chapter, mutex)
+		utils.CloseWSConnection(c, info.Chapter, mutex)
 		return
 	}
 
@@ -87,12 +62,12 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 			"payload": []interface{}{info.Index, s.Text()},
 			"chapter": info.Chapter,
 		}
-		sendMessage(c, logMsg, mutex)
+		utils.SendWsMessage(c, logMsg, mutex)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		log.Println("failed at command wait")
-		closeConnection(c, info.Chapter, mutex)
+		utils.CloseWSConnection(c, info.Chapter, mutex)
 		return
 	}
 
@@ -102,7 +77,7 @@ func ExecCell(c *websocket.Conn, info ClassInfo, mutex *sync.Mutex, publicHTTPUr
 		"payload": []interface{}{info.Index, videoUrl},
 		"chapter": info.Chapter,
 	}
-	sendMessage(c, completionMsg, mutex)
+	utils.SendWsMessage(c, completionMsg, mutex)
 }
 
 func ExecChapter(c *websocket.Conn, classes []ClassInfo, ctx context.Context, publicHTTPUrl string) error {
@@ -118,7 +93,7 @@ func ExecChapter(c *websocket.Conn, classes []ClassInfo, ctx context.Context, pu
 		"payload": len(classes),
 		"chapter": classes[0].Chapter,
 	}
-	sendMessage(c, startMsg, &wsMutex)
+	utils.SendWsMessage(c, startMsg, &wsMutex)
 
 	for _, class := range classes {
 		if err := sem.Acquire(ctx, 1); err != nil {
@@ -126,12 +101,12 @@ func ExecChapter(c *websocket.Conn, classes []ClassInfo, ctx context.Context, pu
 		}
 		go func() {
 			defer sem.Release(1)
-			ExecCell(c, class, &wsMutex, publicHTTPUrl)
+			execCell(c, class, &wsMutex, publicHTTPUrl)
 		}()
 	}
 	if err := sem.Acquire(ctx, int64(maxWorkers)); err != nil {
 		log.Printf("Failed to acquire semaphore: %v", err)
-		closeConnection(c, classes[0].Chapter, &wsMutex)
+		utils.CloseWSConnection(c, classes[0].Chapter, &wsMutex)
 		return err
 	}
 
@@ -140,7 +115,7 @@ func ExecChapter(c *websocket.Conn, classes []ClassInfo, ctx context.Context, pu
 		"payload": "bye :)",
 		"chapter": classes[0].Chapter,
 	}
-	sendMessage(c, endingMsg, &wsMutex)
+	utils.SendWsMessage(c, endingMsg, &wsMutex)
 
 	return nil
 }
